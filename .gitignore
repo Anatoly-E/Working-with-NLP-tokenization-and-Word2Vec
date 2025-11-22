@@ -1,0 +1,7 @@
+Doc's/
+src/__pycache__/
+__pycache__/
+.venv/
+.vscode/
+data/
+models/
