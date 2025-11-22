@@ -29,6 +29,18 @@ def download_nltk_resources():
     
     print("✅ Все ресурсы NLTK загружены!")
 
+def load_russian_corpus(file_path):
+    """Загружает русский текст из файла"""
+    try:
+        with open(file_path, 'r', encoding='utf-8') as file:
+            text = file.read()
+        print(f"✅ Русский текст загружен из: {file_path}")
+        print(f"📊 Размер текста: {len(text):,} символов")
+        return text
+    except Exception as e:
+        print(f"❌ Ошибка загрузки русского текста: {e}")
+        return None
+
 def load_gutenberg_corpus(book_name='carroll-alice.txt'):
     """Загружает корпус из библиотеки Gutenberg"""
     try:

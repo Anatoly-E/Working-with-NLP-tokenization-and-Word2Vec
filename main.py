@@ -12,106 +12,116 @@ src_path = os.path.join(current_dir, 'src')
 if src_path not in sys.path:
     sys.path.insert(0, src_path)
 
-try:
-    # Импортируем только то, что точно есть в модулях
-    from src.data_loader import download_nltk_resources, load_gutenberg_corpus, load_custom_corpus, save_processed_data
-    from src.preprocessor import TextPreprocessor
-    from src.word2vec_train import Word2VecTrainer
-    from src.visualizer import EmbeddingVisualizer
+# Импортируем только то, что точно есть в модулях
+from config import LANGUAGE_CONFIGS, DATA_PATHS, CURRENT_LANGUAGE
+from src.data_loader import download_nltk_resources, load_gutenberg_corpus, load_russian_corpus, load_custom_corpus, save_processed_data
+from src.preprocessor import TextPreprocessor
+from src.word2vec_train import Word2VecTrainer
+from src.visualizer import EmbeddingVisualizer
     
-    # Пробуем импортировать show_corpus_info, но если нет - создадим свою версию
-    try:
-        from src.data_loader import show_corpus_info
-    except ImportError:
-        print("Функция show_corpus_info не найдена, создаем свою...")
-        def show_corpus_info():
-            """Простая версия показа информации о корпусе"""
-            try:
-                from nltk.corpus import gutenberg
-                file_ids = gutenberg.fileids()
-                print("\nДоступные книги в Gutenberg:")
-                for i, file_id in enumerate(file_ids[:5]):
-                    print(f"   {i+1}. {file_id}")
-                return file_ids
-            except:
-                print("Не удалось получить список книг")
-                return []
+def select_language():
+    """Позволяет пользователю выбрать язык"""
+    print("🌍 ВЫБЕРИТЕ ЯЗЫК ДЛЯ АНАЛИЗА:")
+    print("   1. Английский (Alice in Wonderland)")
+    print("   2. Русский (Алиса в Стране чудес)")
     
-    # Импортируем конфиг
-    from config import DATA_CONFIG, PREPROCESSING_CONFIG, WORD2VEC_CONFIG, VISUALIZATION_CONFIG
-    
-    print("Все модули успешно импортированы!")
-    
-except ImportError as e:
-    print(f"Критическая ошибка импорта: {e}")
-    print("\nПроверьте содержимое файлов в папке src/")
-    sys.exit(1)
+    while True:
+        choice = input("\n🎯 Введите 1 или 2: ").strip()
+        if choice == '1':
+            return 'english'
+        elif choice == '2':
+            return 'russian'
+        else:
+            print("❌ Пожалуйста, введите 1 или 2")
+
+def get_language_config(language):
+    """Возвращает конфигурацию для выбранного языка"""
+    return LANGUAGE_CONFIGS[language]
 
 def main():
-    print("\nЗапуск лабораторной работы: NLP с Word2Vec")
+    print("🚀 Запуск лабораторной работы: NLP с Word2Vec")
+    print("=" * 50)
+    
+    # Выбор языка
+    language = select_language()
+    config = get_language_config(language)
+    
+    print(f"\n🌍 Выбран язык: {language.upper()}")
     print("=" * 50)
     
     # Шаг 1: Подготовка и загрузка данных
-    print("\nШАГ 1: Загрузка данных...")
+    print("\n📥 ШАГ 1: Загрузка данных...")
     download_nltk_resources()
     
-    # Покажем доступные книги
-    available_books = show_corpus_info()
-    
-    if DATA_CONFIG['corpus_name'] == 'gutenberg':
-        text = load_gutenberg_corpus(DATA_CONFIG['book_name'])
-    else:
-        text = load_custom_corpus(DATA_CONFIG['custom_file_path'])
+    # Загружаем данные в зависимости от языка
+    if language == 'english':
+        text = load_gutenberg_corpus(config['book_name'])
+        corpus_type = "Gutenberg (английский)"
+    else:  # russian
+        text = load_russian_corpus(DATA_PATHS['russian_file_path'])
+        corpus_type = "Русский текст"
     
     if not text:
-        print("Не удалось загрузить данные!")
+        print("❌ Не удалось загрузить данные!")
         return
+    
+    print(f"📚 Используется: {corpus_type}")
     
     # Шаг 2: Предобработка текста
-    print("\nШАГ 2: Предобработка текста...")
-    preprocessor = TextPreprocessor(language=PREPROCESSING_CONFIG['language'])
+    print("\n🛠️ ШАГ 2: Предобработка текста...")
+    preprocessor = TextPreprocessor(language=config['preprocessing']['language'])
     processed_tokens = preprocessor.preprocess_text(text)
     
-    # Сохраняем обработанные данные
-    save_processed_data(processed_tokens)
+    # Диагностика наличия ключевых слов
+    print(f"\n🔍 Проверяем наличие ключевых слов ({language}):")
+    from collections import Counter
+    word_freq = Counter(processed_tokens)
     
-    # Показываем пример токенов
-    sample_tokens = preprocessor.get_sample_tokens(processed_tokens, 15)
-    print(f"Пример токенов: {sample_tokens}")
+    test_words = config['test_words']
+    found_words = []
+    
+    for word in test_words:
+        if word in word_freq:
+            print(f"   ✅ '{word}': найдено ({word_freq[word]} раз)")
+            found_words.append(word)
+        else:
+            print(f"   ❌ '{word}': не найдено")
+    
+    if len(found_words) < 3:
+        print(f"⚠️ Мало ключевых слов найдено. Используем самые частые слова.")
+        found_words = [word for word, count in word_freq.most_common(10)]
+    
+    # Сохраняем обработанные данные
+    filename = f"processed_tokens_{language}.txt"
+    save_processed_data(processed_tokens, filename)
     
     # Шаг 3: Обучение Word2Vec
-    print("\nШАГ 3: Обучение Word2Vec модели...")
-    trainer = Word2VecTrainer(WORD2VEC_CONFIG)
+    print("\n🎯 ШАГ 3: Обучение Word2Vec модели...")
+    trainer = Word2VecTrainer(config['word2vec'])
     model = trainer.train_model(processed_tokens)
     
-    # Проверяем, что модель успешно обучена
-    if model is None:
-        print("Не удалось обучить модель Word2Vec!")
-        print("Возможные причины:")
-        print(" - Слишком мало данных после предобработки")
-        print(" - Параметр min_count слишком высокий")
-        print(" - Проблемы с входными данными")
-        return
-    
     # Исследуем модель
-    trainer.explore_model(['alice', 'rabbit', 'queen', 'king'])
+    print(f"\n🔍 Исследуем модель ({language}):")
+    trainer.explore_model(found_words)
     
     # Сохраняем модель
-    success = trainer.save_model()
-    if not success:
-        print("Не удалось сохранить модель, но продолжаем...") 
-           
+    model_path = f'models/word2vec_model_{language}'
+    trainer.save_model(model_path)
+    
     # Шаг 4: Визуализация
-    print("\nШАГ 4: Визуализация эмбеддингов...")
-    visualizer = EmbeddingVisualizer(VISUALIZATION_CONFIG)
-    visualizer.plot_embeddings(model)
+    print("\n🎨 ШАГ 4: Визуализация эмбеддингов...")
+    visualizer = EmbeddingVisualizer(config['visualization'], language=language)
+    success = visualizer.plot_embeddings(model)
+    
+    if not success:
+        print("⚠️ Не удалось создать визуализацию")
     
     print("\n" + "=" * 50)
-    print("Лабораторная работа завершена успешно!")
-    print("Результаты сохранены в папках:")
-    print(" - models/word2vec_model/word2vec.model")
-    print(" - results/plots/word_embeddings.png")
-    print(" - data/processed/processed_tokens.txt")
+    print(f"✅ Лабораторная работа завершена успешно! (Язык: {language})")
+    print("📁 Результаты сохранены в папках:")
+    print(f"   - models/word2vec_model_{language}/word2vec.model")
+    print(f"   - results/plots/word_embeddings.png")
+    print(f"   - data/processed/processed_tokens_{language}.txt")
 
 if __name__ == "__main__":
     main()

@@ -8,8 +8,9 @@ import numpy as np
 import os
 
 class EmbeddingVisualizer:
-    def __init__(self, config):
+    def __init__(self, config, language="russian"):
         self.config = config
+        self.language = language
         plt.style.use('default')
     
     def plot_embeddings(self, model, words_to_plot=None):
@@ -75,10 +76,10 @@ class EmbeddingVisualizer:
                         bbox=dict(boxstyle="round,pad=0.3", 
                                 facecolor="lightblue", alpha=0.7),
                         ha='center', va='center')
-        
+
         plt.title('Визуализация векторных представлений слов Word2Vec при помощи PCA\n', fontsize=14, pad=20)
-        plt.xlabel('Principal Component 1')
-        plt.ylabel('Principal Component 2')
+        plt.xlabel('Главная компонента 1')
+        plt.ylabel('Главная компонента 2')
         plt.grid(True, alpha=0.3)
         plt.tight_layout()
         
@@ -87,9 +88,12 @@ class EmbeddingVisualizer:
         cbar.set_label('Word Index', rotation=270, labelpad=15)
     
     def _save_plot(self):
+        # Добавляем язык в название файла
+        language_name = "russian_text" if self.language == 'russian' else "gothenberg"
+        
         """Сохраняет график в папку results"""
         os.makedirs('results/plots', exist_ok=True)
-        plot_path = 'results/plots/word_embeddings.png'
+        plot_path = f'results/plots/word_embeddings_{language_name}.png'
         plt.savefig(plot_path, dpi=300, bbox_inches='tight')
         print(f"💾 График сохранен: {plot_path}")
         plt.show()
