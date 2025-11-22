@@ -92,7 +92,8 @@ def main():
         found_words = [word for word, count in word_freq.most_common(10)]
     
     # Сохраняем обработанные данные
-    filename = f"processed_tokens_{language}.txt"
+    language_name = "russian_text" if language == 'russian' else "gothenberg"
+    filename = f"processed_tokens_{language_name}.txt"
     save_processed_data(processed_tokens, filename)
     
     # Шаг 3: Обучение Word2Vec
